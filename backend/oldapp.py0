@@ -1,0 +1,32 @@
+# backend/app.py
+from flask import Flask, jsonify, render_template, request
+from db_utils import get_db_connection
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return "财务系统后端服务已启动"
+
+@app.route("/accounts")
+def show_accounts_page():
+    """渲染会计科目页面"""
+    conn = get_db_connection()
+    if conn is None:
+        return "数据库连接失败", 500
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM chart_of_accounts ORDER BY account_code;")
+        accounts_data = cursor.fetchall()
+        return render_template('accounts.html', accounts=accounts_data)
+    except Exception as e:
+        return f"查询失败: {e}", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+

@@ -1,0 +1,30 @@
+<!-- backend/templates/accounts.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>会计科目表</title>
+</head>
+<body>
+    <h1>会计科目表</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>科目代码</th>
+                <th>科目名称</th>
+                <th>余额方向</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in accounts %}
+            <tr>
+                <td>{{ account.account_code }}</td>
+                <td>{{ account.account_name }}</td>
+                <td>{{ account.balance_direction }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+

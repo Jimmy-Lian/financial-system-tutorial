@@ -1,0 +1,27 @@
+# backend/app.py
+from flask import Flask, jsonify, render_template, request
+from db_utils import get_db_connection
+app = Flask(__name__)
+@app.route("/")
+def index():
+    return "财务系统后端服务已启动"
+
+@app.route("/accounts")
+def show_accounts_page():
+    """
+    【前后端分离模式】
+    此路由现在只负责返回 'accounts.html' 页面的基本框架。
+    数据将由前端通过 JavaScript 异步加载。
+    """
+    # 相比最初的版本，这里所有的数据库连接、查询和数据传递代码都已被移除。
+    # Flask 只需找到并返回模板文件即可。
+    return render_template('accounts.html')
+
+# API 相关的路由将在 6.4.3 章节中添加。
+
+
+
+if __name__ == '__main__':
+    # 关键：设置 host='0.0.0.0' 以允许外部访问
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
