@@ -1,0 +1,120 @@
+/* backend/static/css/style.css */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    line-height: 1.6;
+}
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.navbar {
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+}
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.navbar-brand {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #2c3e50;
+    text-decoration: none;
+}
+.navbar-links a {
+    color: #555;
+    text-decoration: none;
+    margin-left: 20px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+.navbar-links a:hover {
+    background-color: #eee;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+th {
+    background-color: #f8f8f8;
+    font-weight: bold;
+}
+.btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 5px;
+}
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+/* backend/static/css/style.css (追加部分)*/
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+}
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+

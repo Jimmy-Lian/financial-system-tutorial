@@ -1,0 +1,35 @@
+<!-- backend/templates/layout.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}财务信息系统{% endblock %}</title>
+    <!-- 引入CSS样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a class="navbar-brand" href="/">财务信息系统</a>
+            <div class="navbar-links">
+                <a href="/accounts">会计科目管理</a>
+                <a href="/vouchers">凭证管理</a>
+                <a href="/reports">财务报表</a>
+            </div>
+        </div>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">
+        <div class="container">
+            &copy; 202x 财务信息系统项目实战
+        </div>
+    </footer>
+    <!-- 引入jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 引入子模板自定义的JS脚本 -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
