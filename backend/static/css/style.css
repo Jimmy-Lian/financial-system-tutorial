@@ -116,5 +116,16 @@ th {
     padding: 8px;
     box-sizing: border-box;
 }
+.parent-balance-input {
+    background-color: #f2f2f2; /* 灰色背景 */
+    font-weight: bold;
+    border: none;
+    cursor: not-allowed;
+}
 
+.btn-disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    color: #666;
+}
 

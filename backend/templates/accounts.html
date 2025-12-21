@@ -1,11 +1,21 @@
 <!-- backend/templates/accounts.html -->
 {% extends "layout.html" %}
 {% block title %}会计科目管理{% endblock %}
+
 {% block content %}
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2>会计科目管理</h2>
         <button id="btn-add-account" class="btn btn-primary">新增科目</button>
     </div>
+
+    <!-- 新增的期初余额控制区域 -->
+    <div class="balance-controls" style="background-color: #fff; padding: 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+        <label for="fiscal-year" style="font-weight: bold;">会计年度:</label>
+        <input type="number" id="fiscal-year" value="2025" style="width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <button id="btn-save-balances" class="btn btn-primary">保存期初余额</button>
+        <span id="balance-status" style="color: green; font-weight: bold;"></span>
+    </div>
+
     <table id="accounts-table">
         <thead>
             <tr>
@@ -13,6 +23,7 @@
                 <th>科目名称</th>
                 <th>余额方向</th>
                 <th>科目级别</th>
+                <th style="width: 150px;">期初余额</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -20,12 +31,14 @@
             <!-- 表格内容将由jQuery动态填充 -->
         </tbody>
     </table>
-    <!-- 新增/编辑弹窗 (默认隐藏) -->
+
+    <!-- 新增/编辑弹窗 -->
     <div id="account-modal" class="modal">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
+            <span class="close-button">×</span>
             <h3 id="modal-title">新增科目</h3>
             <form id="account-form">
+                <input type="hidden" id="account-id" name="id">
                 <div class="form-group">
                     <label for="account-code">科目代码</label>
                     <input type="text" id="account-code" name="account_code" required>
@@ -48,7 +61,8 @@
         </div>
     </div>
 {% endblock %}
+
 {% block scripts %}
-    <script src="{{ url_for('static', filename='js/accounts.js') }}"></script>
+      <script src="{{ url_for('static', filename='js/accounts.js') }}"></script>
 {% endblock %}
 

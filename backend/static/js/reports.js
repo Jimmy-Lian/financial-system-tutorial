@@ -202,5 +202,52 @@ $(document).ready(function() {
             }
         });
     });
+  // --- 新增：获取并显示试算平衡表 ---
+    $('#btn-get-tb').on('click', function() {
+        const year = $yearInput.val();
+        if (!year) {
+            alert('请输入年份！');
+            return;
+        }
+        $displayArea.html('<p>正在进行试算平衡检查...</p>');
+
+        $.ajax({
+            url: `/api/reports/trial_balance?year=${year}`,
+            type: 'GET',
+            success: function(data) {
+                let html = '<h3>一级科目试算平衡表</h3><table><thead><tr><th>项目</th><th style="text-align: right;">借方总额</th><th style="text-align: right;">贷方总额</th><th>平衡状态</th></tr></thead><tbody>';
+
+                let opening_balanced = false;
+                let closing_balanced = false;
+
+                data.forEach(function(row) {
+                    let is_balanced = parseFloat(row.total_debit).toFixed(2) === parseFloat(row.total_credit).toFixed(2);
+                    let status_badge = is_balanced ? '<span style="color: green;">✔ 平衡</span>' : '<span style="color: red;">❌ 不平衡</span>';
+
+                    if (row.item_name === '期初余额') opening_balanced = is_balanced;
+                    if (row.item_name === '期末余额') closing_balanced = is_balanced;
+
+                    html += `<tr>
+                        <td><strong>${row.item_name}</strong></td>
+                        <td style="text-align: right;">${formatNumber(row.total_debit)}</td>
+                        <td style="text-align: right;">${formatNumber(row.total_credit)}</td>
+                        <td>${status_badge}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                
+                if (opening_balanced && closing_balanced) {
+                    html += '<p style="color: green; font-weight: bold; margin-top: 10px;">结论：账务系统在期初和期末均保持平衡。</p>';
+                } else {
+                    html += '<p style="color: red; font-weight: bold; margin-top: 10px;">警告：账务系统存在不平衡，请检查您的凭证和期初数据！</p>';
+                }
+                $displayArea.html(html);
+            },
+            error: function(xhr) {
+                $displayArea.html(`<p style="color: red;">获取试算平衡表失败: ${xhr.responseJSON ? xhr.responseJSON.error : '未知错误'}</p>`);
+            }
+        });
+    });
+
 });
 

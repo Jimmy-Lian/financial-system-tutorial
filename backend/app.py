@@ -32,17 +32,33 @@ def show_reports_page():
 # --- Read all: 获取所有会计科目 ---
 @app.route("/api/accounts", methods=['GET'])
 def get_accounts_api():
-    """获取所有会计科目的API接口"""
+    """获取所有会计科目，并增加是否为末级科目的标志"""
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "数据库连接失败"}), 500
+    
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM chart_of_accounts ORDER BY account_code;")
+        # 这个SQL查询会判断每个科目是否作为其他科目的父科目出现过
+        # 如果没有，则它就是末级科目 (is_leaf = 1)
+        sql = """
+            SELECT
+                a.*,
+                (CASE WHEN b.parent_code IS NULL THEN 1 ELSE 0 END) as is_leaf
+            FROM
+                chart_of_accounts a
+            LEFT JOIN
+                (SELECT DISTINCT parent_code FROM chart_of_accounts WHERE parent_code IS NOT NULL) b
+            ON
+                a.account_code = b.parent_code
+            ORDER BY
+                a.account_code;
+        """
+        cursor.execute(sql)
         accounts = cursor.fetchall()
         return jsonify(accounts)
     except Exception as e:
-        return jsonify({"error": f"查询失败: {e}"}), 500
+        return jsonify({"error": f"查询科目列表失败: {e}"}), 500
     finally:
         cursor.close()
         conn.close()
@@ -133,6 +149,74 @@ def delete_account_api(account_code):
     finally:
         cursor.close()
         conn.close()
+
+# --- API 路由：期初余额管理 ---
+@app.route("/api/account_balances", methods=['GET'])
+def get_account_balances_api():
+    """根据年份获取所有科目的期初余额，并判断是否为初始年份"""
+    year = request.args.get('year', type=int)
+    if not year: return jsonify({"error": "必须提供年份参数"}), 400
+
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT MIN(fiscal_year) as min_year FROM account_balances WHERE opening_balance != 0 OR period_debit != 0 OR period_credit != 0")
+        result = cursor.fetchone()
+        min_year = result['min_year'] if result and result['min_year'] is not None else year
+        is_initial_year = (year <= min_year)
+
+        sql = """
+            SELECT coa.account_code, ab.opening_balance
+            FROM chart_of_accounts coa
+            LEFT JOIN account_balances ab ON coa.account_code = ab.account_code AND ab.fiscal_year = %s
+            ORDER BY coa.account_code;
+        """
+        cursor.execute(sql, (year,))
+        balances = cursor.fetchall()
+        balance_map = {b['account_code']: b['opening_balance'] for b in balances}
+
+        return jsonify({
+            "balances": balance_map,
+            "is_initial_year": is_initial_year
+        })
+    except Exception as e:
+        return jsonify({"error": f"查询期初余额失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/account_balances", methods=['POST'])
+def save_account_balances_api():
+    """批量保存或更新指定年份的期初余额"""
+    data = request.get_json()
+    year = data.get('year')
+    balances = data.get('balances')
+    if not year or balances is None:
+        return jsonify({"error": "缺少年份或余额数据"}), 400
+
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor()
+    try:
+        sql = """
+            INSERT INTO account_balances (account_code, fiscal_year, opening_balance)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE opening_balance = VALUES(opening_balance)
+        """
+        data_to_insert = [(item['account_code'], year, item['balance']) for item in balances]
+        cursor.executemany(sql, data_to_insert)
+        conn.commit()
+        return jsonify({"message": f"{year}年度的期初余额已成功保存"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"保存期初余额失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 # --- 财务报表生成的 API 路由 ---
 
@@ -254,6 +338,29 @@ def get_cash_flow_statement_api():
         return jsonify(report_data)
     except Exception as e:
         return jsonify({"error": f"获取现金流量表失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/reports/trial_balance", methods=['GET'])
+def get_trial_balance_api():
+    """获取试算平衡表数据"""
+    year = request.args.get('year', type=int)
+    if not year:
+        return jsonify({"error": "必须提供年份参数"}), 400
+
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.callproc('proc_generate_trial_balance', (year,))
+        cursor.execute("SELECT * FROM trial_balance_report;")
+        report_data = cursor.fetchall()
+        conn.commit() # 确保存储过程的结果对当前会话可见
+        return jsonify(report_data)
+    except Exception as e:
+        return jsonify({"error": f"获取试算平衡表失败: {e}"}), 500
     finally:
         cursor.close()
         conn.close()
