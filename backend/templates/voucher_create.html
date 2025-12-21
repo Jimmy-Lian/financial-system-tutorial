@@ -1,0 +1,55 @@
+
+<!-- backend/templates/voucher_create.html -->
+{% extends "layout.html" %}
+{% block title %}新增凭证{% endblock %}
+
+{% block content %}
+    <h2>新增凭证</h2>
+    <form id="voucher-form">
+        <!-- 凭证头 -->
+        <div class="voucher-header">
+            <div><label>日期:</label><input type="date" id="voucher-date" required></div>
+            <div>
+                <label>凭证字:</label>
+                <select id="voucher-type">
+                    <option value="记">记</option>
+                    <option value="收">收</option>
+                    <option value="付">付</option>
+                    <option value="转">转</option>
+                </select>
+                <label>号:</label><input type="number" id="voucher-number" required>
+            </div>
+        </div>
+
+        <!-- 凭证分录 -->
+        <table id="entries-table">
+            <thead>
+                <tr>
+                    <th style="width: 30%;">摘要</th>
+                    <th style="width: 30%;">会计科目</th>
+                    <th style="width: 15%;">借方金额</th>
+                    <th style="width: 15%;">贷方金额</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 初始两行将由JS动态生成 -->
+            </tbody>
+        </table>
+
+        <!-- 合计与操作 -->
+        <div class="voucher-footer">
+            <button type="button" id="btn-add-row" class="btn">增加一行</button>
+            <div class="totals">
+                <span>合计:</span>
+                <span id="total-debit">0.00</span>
+                <span id="total-credit">0.00</span>
+            </div>
+            <button type="submit" id="btn-save-voucher" class="btn btn-primary">保存凭证</button>
+        </div>
+    </form>
+{% endblock %}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/voucher_create.js') }}"></script>
+{% endblock %}
+

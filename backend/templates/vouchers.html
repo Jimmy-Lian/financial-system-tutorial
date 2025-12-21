@@ -1,0 +1,54 @@
+<!-- backend/templates/vouchers.html -->
+{% extends "layout.html" %}
+{% block title %}凭证管理{% endblock %}
+
+{% block content %}
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>凭证列表</h2>
+        <a href="/vouchers/new" class="btn btn-primary">新增凭证</a>
+    </div>
+
+    <table id="vouchers-table">
+        <thead>
+            <tr>
+                <th>凭证日期</th>
+                <th>凭证号</th>
+                <th>摘要</th>
+                <th style="text-align: right;">金额</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 凭证列表将由jQuery动态填充 -->
+        </tbody>
+    </table>
+
+<!-- 凭证详情弹窗 (默认隐藏) -->
+<div id="voucher-details-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <span class="close-button">&times;</span>
+        <h3 id="modal-voucher-ref"></h3>
+        <div id="modal-voucher-header"></div>
+        <table id="modal-entries-table">
+            <thead>
+                <tr>
+                    <th>摘要</th>
+                    <th>会计科目</th>
+                    <th style="text-align: right;">借方金额</th>
+                    <th style="text-align: right;">贷方金额</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 分录详情将动态填充在这里 -->
+            </tbody>
+        </table>
+        <div id="modal-voucher-footer" style="text-align: right; margin-top: 10px; font-weight: bold;"></div>
+    </div>
+</div>	
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/vouchers.js') }}"></script>
+{% endblock %}
+

@@ -63,6 +63,8 @@ def get_accounts_api():
         cursor.close()
         conn.close()
 
+
+
 # --- Read: 获取单个会计科目 ---
 @app.route("/api/accounts/<string:account_code>", methods=['GET'])
 def get_single_account_api(account_code):
@@ -365,6 +367,203 @@ def get_trial_balance_api():
         cursor.close()
         conn.close()
 
+# ==========================================
+# 10.3 记账凭证功能后端实现
+# ==========================================
+
+# --- 1. 页面路由：用于显示 HTML 页面 ---
+
+@app.route("/vouchers")
+def vouchers_page():
+    """【页面】渲染并显示凭证列表页面"""
+    return render_template("vouchers.html")
+
+@app.route("/vouchers/new")
+def voucher_new_page():
+    """【页面】渲染并显示凭证录入页面"""
+    # 确保此处指向你实际的 HTML 文件名 voucher_create.html
+    return render_template("voucher_create.html")
+
+
+# --- 2. API 路由：记账凭证数据管理 ---
+
+@app.route("/api/vouchers", methods=['GET'])
+def get_vouchers_api():
+    """【API】获取凭证列表（含合计金额）"""
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # SQL说明：查询凭证主表，并通过子查询计算每张凭证的借方合计
+        sql = """
+            SELECT 
+                v.id,
+                v.voucher_date,
+                CONCAT(v.voucher_type, '-', LPAD(v.voucher_number, 4, '0')) as voucher_ref,
+                v.summary,
+                (SELECT SUM(je.debit_amount) FROM journal_entries je WHERE je.voucher_id = v.id) as total_amount
+            FROM vouchers v
+            ORDER BY v.voucher_date DESC, v.voucher_number DESC;
+        """
+        cursor.execute(sql)
+        vouchers = cursor.fetchall()
+        return jsonify(vouchers)
+    except Exception as e:
+        return jsonify({"error": f"查询凭证列表失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/vouchers/<int:voucher_id>", methods=['GET'])
+def get_voucher_details_api(voucher_id):
+    """【API】获取单张凭证的详细信息（头+分录）"""
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. 查询凭证头
+        cursor.execute("SELECT * FROM vouchers WHERE id = %s", (voucher_id,))
+        header = cursor.fetchone()
+        if not header:
+            return jsonify({"error": "未找到该凭证"}), 404
+
+        # 2. 查询该凭证关联的所有会计分录
+        sql_entries = """
+            SELECT je.*, coa.account_name 
+            FROM journal_entries je
+            JOIN chart_of_accounts coa ON je.account_code = coa.account_code
+            WHERE je.voucher_id = %s 
+            ORDER BY je.id;
+        """
+        cursor.execute(sql_entries, (voucher_id,))
+        entries = cursor.fetchall()
+
+        return jsonify({ "header": header, "entries": entries })
+    except Exception as e:
+        return jsonify({"error": f"查询凭证详情失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# --- 关键补丁：获取末级科目接口 ---
+@app.route("/api/accounts/leaf", methods=['GET'])
+def get_leaf_accounts_api():
+    """【API】获取所有末级科目（用于录入页面的下拉框）"""
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # SQL逻辑：找出那些没有出现在 parent_code 列中的科目
+        sql = """
+            SELECT account_code, account_name 
+            FROM chart_of_accounts 
+            WHERE account_code NOT IN (
+                SELECT DISTINCT parent_code FROM chart_of_accounts WHERE parent_code IS NOT NULL
+            )
+            ORDER BY account_code;
+        """
+        cursor.execute(sql)
+        accounts = cursor.fetchall()
+        return jsonify(accounts)
+    except Exception as e:
+        return jsonify({"error": f"获取末级科目失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/vouchers/next_number", methods=['GET'])
+def get_next_voucher_number_api():
+    """【API】获取下一个可用的凭证号"""
+    voucher_date_str = request.args.get('date')
+    voucher_type = request.args.get('type')
+
+    if not voucher_date_str or not voucher_type:
+        return jsonify({"error": "必须提供日期和凭证字参数"}), 400
+
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+
+    cursor = conn.cursor()
+    try:
+        # 统计当月该字号下的最大凭证号
+        sql = """
+            SELECT MAX(voucher_number) FROM vouchers
+            WHERE voucher_type = %s AND DATE_FORMAT(voucher_date, '%%Y-%%m') = DATE_FORMAT(%s, '%%Y-%%m');
+        """
+        cursor.execute(sql, (voucher_type, voucher_date_str))
+        max_number = cursor.fetchone()[0]
+
+        next_number = (max_number or 0) + 1
+        return jsonify({"next_number": next_number})
+    except Exception as e:
+        return jsonify({"error": f"计算凭证号失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/vouchers", methods=['POST'])
+def create_voucher_api():
+    """【API】保存新凭证（使用数据库事务控制）"""
+    data = request.get_json()
+    if not data: return jsonify({"error": "请求体为空"}), 400
+    
+    header = data.get('header')
+    entries = data.get('entries')
+
+    if not header or not entries:
+        return jsonify({"error": "凭证头或分录数据缺失"}), 400
+
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor()
+    try:
+        # --- 核心：启动事务 ---
+        conn.start_transaction()
+
+        # 1. 插入凭证主表
+        sql_header = "INSERT INTO vouchers (voucher_date, voucher_type, voucher_number, summary) VALUES (%s, %s, %s, %s)"
+        cursor.execute(sql_header, (header['date'], header['type'], header['number'], header['summary']))
+        voucher_id = cursor.lastrowid # 获取生成的主键 ID
+
+        # 2. 批量插入分录明细表
+        sql_entries = "INSERT INTO journal_entries (voucher_id, account_code, summary, debit_amount, credit_amount) VALUES (%s, %s, %s, %s, %s)"
+        entry_data = [(voucher_id, e['account_code'], e['summary'], e['debit'], e['credit']) for e in entries]
+        cursor.executemany(sql_entries, entry_data)
+
+        # 3. 提交事务
+        conn.commit()
+        return jsonify({"message": "凭证保存成功", "voucher_id": voucher_id}), 201
+    except Exception as e:
+        # 出错则回滚，确保数据一致性
+        conn.rollback() 
+        return jsonify({"error": f"凭证保存失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/vouchers/<int:voucher_id>", methods=['DELETE'])
+def delete_voucher_api(voucher_id):
+    """【API】删除凭证"""
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "数据库连接失败"}), 500
+    
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM vouchers WHERE id = %s", (voucher_id,))
+        conn.commit()
+        if cursor.rowcount > 0:
+            return jsonify({"message": "凭证删除成功"})
+        else:
+            return jsonify({"error": "未找到该凭证"}), 404
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"删除失败: {e}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     # 关键：设置 host='0.0.0.0' 以允许外部访问
